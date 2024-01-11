@@ -1,15 +1,12 @@
-# NOTE: Even though ansible-core is in 8.6, it is only available
-# at *runtime*, not at *buildtime* - so we can't have
-# ansible-core as a build_dep on RHEL8
-%if 0%{?fedora} || 0%{?rhel} >= 9
-%bcond_without ansible
+# NOTE: ansible-core is in rhel-8.6 and newer, but not installable
+# in buildroot as it depended on modular Python.
+# It has been installable at buildtime in 8.8 and newer.
 %if 0%{?fedora}
 BuildRequires: ansible-packaging
 %else
+%if 0%{?rhel} >= 8
 BuildRequires: ansible-core >= 2.11.0
 %endif
-%else
-%bcond_with ansible
 %endif
 
 %bcond_with collection_artifact
@@ -24,8 +21,8 @@ BuildRequires: ansible-core >= 2.11.0
 Name: ansible-collection-microsoft-sql
 Url: https://github.com/linux-system-roles/mssql
 Summary: The Ansible collection for Microsoft SQL Server management
-Version: 1.3.0
-Release: 3%{?dist}
+Version: 2.0.1
+Release: 1%{?dist}
 
 License: MIT
 
@@ -37,24 +34,6 @@ License: MIT
 %global legacy_rolename %{collection_namespace}.sql-server
 %global _pkglicensedir %{_licensedir}/%{name}
 
-# Helper macros originally from macros.ansible by Igor Raits <ignatenkobrain>
-# On RHEL, not available, so we must define those macros locally
-# On Fedora, provided by ansible-packager
-# Not used (yet). Could be made to point to AH in RHEL - but what about CentOS Stream?
-#%%{!?ansible_collection_url:%%define ansible_collection_url() https://galaxy.ansible.com/%%{collection_namespace}/%%{collection_name}}
-%if 0%{?rhel}
-Provides: ansible-collection(%{collection_namespace}.%{collection_name}) = %{collection_version}
-%global ansible_collection_files %{_datadir}/ansible/collections/ansible_collections/%{collection_namespace}/
-%define ansible_roles_dir %{_datadir}/ansible/roles
-%if %{without ansible}
-# Untar and copy everything instead of galaxy-installing the built artifact when ansible is not available
-%define ansible_collection_build() tar -cf %{_tmppath}/%{collection_namespace}-%{collection_name}-%{version}.tar.gz .
-%define ansible_collection_install() mkdir -p %{buildroot}%{ansible_collection_files}%{collection_name}; (cd %{buildroot}%{ansible_collection_files}%{collection_name}; tar -xf %{_tmppath}/%{collection_namespace}-%{collection_name}-%{version}.tar.gz)
-%else
-%define ansible_collection_build() ansible-galaxy collection build
-%define ansible_collection_install() ansible-galaxy collection install -n -p %{buildroot}%{_datadir}/ansible/collections %{collection_namespace}-%{collection_name}-%{version}.tar.gz
-%endif
-%endif
 # be compatible with the usual Fedora Provides:
 Provides: ansible-collection-%{collection_namespace}-%{collection_name} = %{collection_version}-%{release}
 
@@ -82,6 +61,10 @@ Requires: linux-system-roles
 %global parenturl https://github.com/linux-system-roles
 Source: %{parenturl}/auto-maintenance/archive/%{mainid}/auto-maintenance-%{mainid}.tar.gz
 Source1: %{parenturl}/%{rolename}/archive/%{source1id}/%{rolename}-%{source1id}.tar.gz
+
+# Includes with ansible_collection_build/_install that differ between RHEL versions
+Source1002: ansible-packaging.inc
+%include %{SOURCE1002}
 
 BuildArch: noarch
 
@@ -112,7 +95,7 @@ Summary: Collection artifact to import to Automation Hub / Ansible Galaxy
 
 %description collection-artifact
 Collection artifact for %{name}. This package contains
-%{collection_namespace}-%{collection_name}-%{version}.tar.gz
+%{collection_namespace}-%{collection_name}-%{collection_version}.tar.gz
 %endif
 
 %pretrans -p <lua>
@@ -149,7 +132,7 @@ cp %{rolename}/.collection/galaxy.yml ./
 
 %if 0%{?rhel}
 # Ensure the correct entries in galaxy.yml
-./galaxy_transform.py "%{collection_namespace}" "%{collection_name}" "%{version}" \
+./galaxy_transform.py "%{collection_namespace}" "%{collection_name}" "%{collection_version}" \
                       "Ansible collection for Microsoft SQL Server management" \
                       "https://github.com/linux-system-roles/mssql" \
                       "https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/8/html/administration_and_configuration_tasks_using_system_roles_in_rhel/assembly_configuring-microsoft-sql-server-using-microsoft-sql-server-ansible-role_assembly_updating-packages-to-enable-automation-for-the-rhel-system-roles" \
@@ -157,7 +140,7 @@ cp %{rolename}/.collection/galaxy.yml ./
                       "https://bugzilla.redhat.com/enter_bug.cgi?product=Red%20Hat%20Enterprise%20Linux%208&component=ansible-collection-microsoft-sql" \
                       > galaxy.yml.tmp
 %else
-./galaxy_transform.py "%{collection_namespace}" "%{collection_name}" "%{version}" \
+./galaxy_transform.py "%{collection_namespace}" "%{collection_name}" "%{collection_version}" \
                       "Ansible collection for Microsoft SQL Server management" \
                       > galaxy.yml.tmp
 %endif
@@ -166,8 +149,8 @@ mv galaxy.yml.tmp galaxy.yml
 %if 0%{?rhel}
 # Replace "fedora.linux_system_roles" with "redhat.rhel_system_roles"
 # This is for the "roles calling other roles" case
-find %{rolename} -type f -exec \
-     sed -e "s/fedora[.]linux_system_roles[.]/redhat.rhel_system_roles./g" \
+find . -type f -exec \
+     sed -e "s/fedora\.linux_system_roles/redhat.rhel_system_roles/g" \
          -i {} \;
 %endif
 
@@ -263,8 +246,8 @@ sh md2html.sh -t %{buildroot}%{_pkgdocdir}/collection/roles/%{collection_rolenam
 %if %{with collection_artifact}
 # Copy collection artifact to /usr/share/ansible/collections/ for collection-artifact
 pushd .collections/ansible_collections/%{collection_namespace}/%{collection_name}/
-if [ -f %{collection_namespace}-%{collection_name}-%{version}.tar.gz ]; then
-    mv %{collection_namespace}-%{collection_name}-%{version}.tar.gz \
+if [ -f %{collection_namespace}-%{collection_name}-%{collection_version}.tar.gz ]; then
+    mv %{collection_namespace}-%{collection_name}-%{collection_version}.tar.gz \
        %{buildroot}%{_datadir}/ansible/collections/
 fi
 popd
@@ -346,10 +329,23 @@ find %{buildroot}%{ansible_roles_dir} -mindepth 1 -maxdepth 1 | \
 
 %if %{with collection_artifact}
 %files collection-artifact
-%{_datadir}/ansible/collections/%{collection_namespace}-%{collection_name}-%{version}.tar.gz
+%{_datadir}/ansible/collections/%{collection_namespace}-%{collection_name}-%{collection_version}.tar.gz
 %endif
 
 %changelog
+* Thu Jul 27 2023 Sergei Petrosian <spetrosi@redhat.com> - 2.0.1-1
+- Update role to version 2.0.1 to enhance AD integration
+  Resolves: RHEL-877
+  Resolves: RHEL-878
+  Resolves: RHEL-879
+  Resolves: RHEL-880
+
+* Wed May 31 2023 Sergei Petrosian <spetrosi@redhat.com> - 1.4.1-1
+- Update BuiildRequires to use ansible-core on RHEL > 8.8
+- Move RHEL related code into an include for spec readability
+- Update role to version 1.4.1 to add customizable storage paths
+  Resolves: RHEL-528
+
 * Thu Feb 23 2023 Sergei Petrosian <spetrosi@redhat.com> - 1.3.0-3
 - Spec: add functionality to build from a commit hash
 - Use latest 1.3.0 to add flexibility to AD integration functionality
