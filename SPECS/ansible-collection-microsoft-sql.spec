@@ -14,8 +14,8 @@ BuildRequires: ansible-core >= 2.11.0
 Name: ansible-collection-microsoft-sql
 Url: https://github.com/linux-system-roles/mssql
 Summary: The Ansible collection for Microsoft SQL Server management
-Version: 2.2.3
-Release: 2%{?dist}
+Version: 2.5.2
+Release: 1%{?dist}
 
 License: MIT
 
@@ -47,7 +47,7 @@ Requires: rhel-system-roles
 Requires: linux-system-roles
 %endif
 
-%global mainid eadd06cfa98d244b096cff24cd11b668428b1613
+%global mainid e92f7e4b3a9d09f75c3bfc257705506562083336
 # Use either hash or tag for source1id
 # %%global source1id 50edba099ab2c8b25b225fe760cb5a459b320030
 %global source1id %{version}
@@ -321,7 +321,17 @@ find %{buildroot}%{ansible_roles_dir} -mindepth 1 -maxdepth 1 | \
 %endif
 
 %changelog
-* Thu Feb 27 2024 Sergei Petrosian <spetrosi@redhat.com> - 2.2.3-2
+* Wed Nov 20 2024 Sergei Petrosian <spetrosi@redhat.com> - 2.5.2-1
+- Fail on RHEL or CentOS 10 because it's not supported
+  Resolves: RHEL-67804
+- Use new adutil functionality to enable AES encryption
+  Resolves: RHEL-67807
+- Add mssql_tools_versions, mssql_tls_self_sign to allow installing different versions of mssql-tools
+  Resolves: RHEL-68374
+- Deprecate mssql_accept_microsoft_odbc_driver_17_for_sql_server_eula
+  Resolves: RHEL-69311
+
+* Tue Feb 27 2024 Sergei Petrosian <spetrosi@redhat.com> - 2.2.3-2
 - Revert ExcludeArch: i686 due to TFT-2460
   Resolves: RHEL-16342
 
