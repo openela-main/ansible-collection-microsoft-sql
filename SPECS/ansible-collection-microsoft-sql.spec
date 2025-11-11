@@ -14,7 +14,7 @@ BuildRequires: ansible-core >= 2.11.0
 Name: ansible-collection-microsoft-sql
 Url: https://github.com/linux-system-roles/mssql
 Summary: The Ansible collection for Microsoft SQL Server management
-Version: 2.5.2
+Version: 2.6.4
 Release: 1%{?dist}
 
 License: MIT
@@ -47,7 +47,7 @@ Requires: rhel-system-roles
 Requires: linux-system-roles
 %endif
 
-%global mainid e92f7e4b3a9d09f75c3bfc257705506562083336
+%global mainid 7394bcf621865fe528a53c85264181fb865a2b8a
 # Use either hash or tag for source1id
 # %%global source1id 50edba099ab2c8b25b225fe760cb5a459b320030
 %global source1id %{version}
@@ -321,6 +321,25 @@ find %{buildroot}%{ansible_roles_dir} -mindepth 1 -maxdepth 1 | \
 %endif
 
 %changelog
+* Wed Aug 13 2025 Sergei Petrosian <spetrosi@redhat.com> - 2.6.4-1
+- test: use post quantum crypto for certs where available (#368)
+- fix: Fix templates/configure_ag.j2 for Ansible 2.19
+  Resolves: RHEL-106149
+
+* Mon Jul 28 2025 Sergei Petrosian <spetrosi@redhat.com> - 2.6.3-1
+- refactor: support ansible 2.19
+  Resolves: RHEL-106149
+
+* Fri Jul 4 2025 Sergei Petrosian <spetrosi@redhat.com> - 2.6.2-1
+- Add mssql_ha_ag_is_contained and mssql_ha_ag_reuse_system_db to allow creating AG as contained and reuse system database
+  Resolves: RHEL-92712
+
+* Tue Jul 1 2025 Sergei Petrosian <spetrosi@redhat.com> - 2.6.1-1
+- Add mssql_ha_ag_is_contained and mssql_ha_ag_reuse_system_db to allow creating AG as contained and reuse system database
+  Resolves: RHEL-92712
+- Add secondary_role_allow_connections and mssql_ha_read_only_routing_list
+  Resolves: RHEL-92718
+
 * Wed Nov 20 2024 Sergei Petrosian <spetrosi@redhat.com> - 2.5.2-1
 - Fail on RHEL or CentOS 10 because it's not supported
   Resolves: RHEL-67804
